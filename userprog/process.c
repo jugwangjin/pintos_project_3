@@ -63,7 +63,9 @@ process_execute (const char *file_name)
     return TID_ERROR;
   }
   if(!cur->exec_child_success)
+  {
     return TID_ERROR;
+  }
   return tid;
 }
 
@@ -96,7 +98,9 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
+  {
     thread_exit ();
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -608,7 +612,7 @@ setup_stack (void **esp)
   ste->writable = true;
   ste->mmap = false;
   ste->swap = false;
-  ste->file - false;
+  ste->file = false;
 
   /* if setup stack fails, panic */
   ASSERT (hash_insert (&t->spage_table, &(ste->hash_elem)) == NULL)

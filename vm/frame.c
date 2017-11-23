@@ -91,10 +91,14 @@ void
 	    spage_write_back (ste, fte->thread);
           else
           {
-            ste->swap_index = swap_save_page (fte->kaddr);
-            ste->swap = true;
+            if(pagedir_is_dirty (pd, fte->uaddr))
+            {
+              ste->swap_index = swap_save_page (fte->kaddr);
+              ste->swap = true;
+            }
           }
 	  pagedir_set_accessed (pd, fte->uaddr, false);
+          pagedir_set_dirty (pd, fte->uaddr, false);
 	  pagedir_clear_page (pd, fte->uaddr);
 	  frame = fte->kaddr;
 	  break;
