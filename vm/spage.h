@@ -18,6 +18,7 @@ struct spage_table_entry
   size_t ofs;
   size_t read_bytes;
   size_t zero_bytes;
+  bool pin;
 };
 
 void spage_init (struct hash *spage_table);
@@ -33,4 +34,6 @@ bool spage_mmap (struct file *file, void *addr);
 void spage_munmap (void *addr);
 void spage_destroy (struct hash *spage_table);
 void spage_write_back (struct spage_table_entry *ste, struct thread *t);
+void uaddr_set_pin_true (void *uaddr, struct hash *spage_table);
+void uaddr_set_pin_false (void *uaddr, struct hash *spage_table);
 #endif

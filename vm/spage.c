@@ -7,7 +7,7 @@
 #include "userprog/syscall.h"
 #include "vm/swap.h"
 #include "vm/frame.h"
-
+#include "devices/intq.h"
 static int
 get_user (const uint8_t *uaddr)
 {
@@ -86,6 +86,7 @@ make_spage_for_stack_growth (struct hash *spage_table, void *fault_addr)
   ste->mmap = false;
   ste->file = false;
   ste->swap = false;
+  ste->pin = false;
  
   hash_insert (spage_table, &ste->hash_elem);
   return spage_get_frame (ste);
@@ -132,13 +133,13 @@ load_file (struct spage_table_entry *ste, void *frame)
     return false;*/
   if(ste->file)
   {
-    frame_set_pin_true (frame);
+    uaddr_set_pin_true (ste->uaddr, &thread_current ()->spage_table);
     if (file_read_at (ste->file_ptr, frame, ste->read_bytes, ste->ofs) != (int) ste->read_bytes)
     {
-      frame_set_pin_false (frame);
+      uaddr_set_pin_false (ste->uaddr, &thread_current ()->spage_table);
       return false;
     }
-    frame_set_pin_false (frame);
+    uaddr_set_pin_false (ste->uaddr, &thread_current ()->spage_table);
     memset (frame + ste->read_bytes, 0, ste->zero_bytes);
   }
 /*  else if (ste->mmap && ste->zero_bytes!=0)
@@ -150,29 +151,32 @@ bool
 spage_get_frame (struct spage_table_entry *ste)
 {
   void *allocated_frame;
-  bool success;
+  bool success=false;
   struct frame_table_entry fte;
   struct hash_elem *e;
   struct frame_table_entry *fte_en;
+  lock_acquire (&frame_lock);
   allocated_frame = frame_get_page (PAL_USER, ste);
   if (!allocated_frame)
   {
+    lock_release (&frame_lock);
     return false;
   }
-  success = false; 
-  success = install_page (ste->uaddr, allocated_frame, ste->writable);
   fte.kaddr = allocated_frame;
   e = hash_find (&frame_table, &fte.hash_elem);
   fte_en = hash_entry (e, struct frame_table_entry, hash_elem);
   fte_en->uaddr = ste->uaddr;
   fte_en->thread = thread_current ();
-
+  success = install_page (ste->uaddr, allocated_frame, ste->writable);
+  lock_release (&frame_lock);
   if (!success)
     return success;
 //printf("before load_file\n");
   if (ste->swap)
   {
+uaddr_set_pin_true (ste->uaddr, &thread_current ()->spage_table);
     swap_load_page (ste->swap_index, allocated_frame);
+uaddr_set_pin_false (ste->uaddr, &thread_current ()->spage_table);
     ste->swap = false;
     success = true;
     //swap_free_page (ste->swap_index);
@@ -226,7 +230,7 @@ spage_mmap (struct file* file, void *addr)
     ste->ofs = ofs;
     ste->read_bytes = page_read_bytes;
     ste->zero_bytes = page_zero_bytes;
-
+    ste->pin = false;
 
     if (hash_insert (&t->spage_table, &ste->hash_elem) != NULL)
       return false;
@@ -248,9 +252,9 @@ spage_write_back (struct spage_table_entry *ste, struct thread *t)
   dirty = pagedir_is_dirty(t->pagedir, ste->uaddr);
   if (dirty)
   {
-    frame_set_pin_true (pagedir_get_page(t->pagedir, ste->uaddr));
+    uaddr_set_pin_true (ste->uaddr, &t->spage_table);
     file_write_at (ste->file_ptr, pagedir_get_page(t->pagedir, ste->uaddr), ste->read_bytes, ste->ofs);
-    frame_set_pin_false (pagedir_get_page(t->pagedir, ste->uaddr));
+    uaddr_set_pin_false (ste->uaddr, &t->spage_table);
   }
 }
 /* same as hash_destroy, but I could not find argument. so make it */
@@ -273,4 +277,32 @@ spage_destroy (struct hash *spage_table)
     hash_first (&iter, spage_table);
     e = hash_next (&iter);
   }
+}
+
+void
+uaddr_set_pin (void *uaddr, struct hash *spage_table, bool pin)
+{
+
+lock_acquire (&pinning_lock);
+  struct spage_table_entry ste;
+  struct hash_elem *e;
+  struct spage_table_entry *ste_en;
+  ste.uaddr = uaddr;
+  e = hash_find (spage_table, &ste.hash_elem);
+  if (e != NULL)
+  {  
+    ste_en = hash_entry (e, struct spage_table_entry, hash_elem);
+    ste_en->pin = pin;
+  }
+lock_release (&pinning_lock);
+}
+
+void uaddr_set_pin_true (void *uaddr, struct hash *spage_table)
+{
+  uaddr_set_pin (uaddr, spage_table, true);
+}
+
+void uaddr_set_pin_false (void *uaddr, struct hash *spage_table)
+{
+  uaddr_set_pin (uaddr, spage_table, false);
 }

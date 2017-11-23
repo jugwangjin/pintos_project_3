@@ -582,6 +582,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       ste->ofs = ofs;
       ste->read_bytes = page_read_bytes;
       ste->zero_bytes = page_zero_bytes;
+      ste->pin = false;
 
       if (hash_insert (&t->spage_table, &ste->hash_elem) != NULL)
         return false;
@@ -616,20 +617,26 @@ setup_stack (void **esp)
   ste->mmap = false;
   ste->swap = false;
   ste->file = false;
-
+  ste->pin = false;
   /* if setup stack fails, panic */
   ASSERT (hash_insert (&t->spage_table, &(ste->hash_elem)) == NULL)
+  lock_acquire (&frame_lock);
   kpage = frame_get_page (PAL_USER | PAL_ZERO, ste);
+  struct frame_table_entry fte;
+  struct hash_elem *e;
+  struct frame_table_entry *fte_en;
+  fte.kaddr = kpage;
+  e = hash_find (&frame_table, &fte.hash_elem);
+  fte_en = hash_entry (e, struct frame_table_entry, hash_elem);
+  fte_en->uaddr = ste->uaddr;
+  fte_en->thread = thread_current ();
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
         *esp = PHYS_BASE;
-      else
-        palloc_free_page (kpage);
     }
-  if (success)
-    frame_table_insert (kpage, ste->uaddr);
+  lock_release (&frame_lock);
   return success;
 }
 

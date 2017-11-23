@@ -5,11 +5,14 @@
 #include "userprog/pagedir.h"
 #include "devices/intq.h"
 
+static void *clock_hand;
+
 void
 frame_init (void)
 {
   hash_init (&frame_table, frame_hash, frame_less, NULL);
   lock_init (&frame_lock);
+  lock_init (&pinning_lock);
   clock_hand = NULL;
 //  swap_init ();
 }
@@ -44,12 +47,12 @@ void
   frame = NULL;
   if (! (flags & PAL_USER))
     return NULL;
-lock_acquire (&frame_lock);
+//lock_acquire (&frame_lock);
   frame = palloc_get_page (flags);
   if (frame != NULL)
   {
     frame_table_insert (frame, spage->uaddr);
-lock_release (&frame_lock);
+//lock_release (&frame_lock);
     return frame;
   }
   else
@@ -69,6 +72,7 @@ lock_release (&frame_lock);
       if (e == NULL)
         hash_first (&it, &frame_table);
     }
+//lock_acquire (&pinning_lock);
     while (true)
     {
       e = hash_next (&it);
@@ -83,11 +87,11 @@ lock_release (&frame_lock);
         PANIC("aa");
       }
       pd = fte->thread->pagedir;
-
-      if (!fte->pin && pagedir_is_accessed (pd, fte->uaddr))
+      ste = get_spage (&fte->thread->spage_table, fte->uaddr);
+      if (!ste->pin && pagedir_is_accessed (pd, fte->uaddr))
       {
+        
 	pagedir_set_accessed (pd, fte->uaddr, false);
-          ste = get_spage (&fte->thread->spage_table, fte->uaddr);
 	  if (ste->mmap)
 	    spage_write_back (ste, fte->thread);
           else
@@ -110,16 +114,18 @@ lock_release (&frame_lock);
     }
 
   old_level = intr_disable (); 
+  clock_hand = fte->kaddr;
   pagedir_set_accessed (pd, fte->uaddr, false);
   pagedir_set_dirty (pd, fte->uaddr, false);
   pagedir_clear_page (pd, fte->uaddr);
   intr_set_level (old_level);
+//  lock_release (&pinning_lock);
   frame = fte->kaddr;
 
-lock_release (&frame_lock);
+//lock_release (&frame_lock);
     return frame;
   }
-lock_release (&frame_lock);
+//lock_release (&frame_lock);
   return NULL;
 }
 
@@ -148,7 +154,7 @@ frame_free_page (void *frame)
     free (fte_en);
   }
 }
-
+/*
 void
 frame_set_pin (void *frame, bool pin)
 {
@@ -172,4 +178,4 @@ void frame_set_pin_true (void *frame)
 void frame_set_pin_false (void *frame)
 {
   frame_set_pin (frame, false);
-}
+} */

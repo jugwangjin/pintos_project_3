@@ -251,9 +251,9 @@ cur->esp = f->esp;
         sema_up (&sys_sema);
         thread_exit ();
       }
-      frame_set_pin_true (pagedir_get_page (cur->pagedir, *(void **)argument_2));
+      uaddr_set_pin_true (*(void **)argument_2, &cur->spage_table);
       f->eax = file_read (file, *(void **)argument_2, *(off_t *)argument_3);
-      frame_set_pin_false (pagedir_get_page (cur->pagedir, *(void **)argument_2));
+      uaddr_set_pin_false (*(void **)argument_2, &cur->spage_table);
       sema_up (&sys_sema);
       return;
     case SYS_WRITE:
@@ -297,9 +297,9 @@ cur->esp = f->esp;
           sema_up (&sys_sema);
           return;
         }
-        frame_set_pin_true (pagedir_get_page (cur->pagedir, *(void **)argument_2));
+        uaddr_set_pin_true (*(void **)argument_2, &cur->spage_table);
         f->eax = file_write (file, *(void **)argument_2, *(off_t *)argument_3); 
-        frame_set_pin_false (pagedir_get_page (cur->pagedir, *(void **)argument_2));
+        uaddr_set_pin_false (*(void **)argument_2, &cur->spage_table);
       }
       sema_up (&sys_sema);
       return;
