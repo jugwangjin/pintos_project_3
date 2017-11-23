@@ -161,7 +161,6 @@ page_fault (struct intr_frame *f)
   else
     esp = cur->esp;
 
-//printf("f->esp is %x, cur->esp is %x, fault_addr is %x, user is %d\n", f->esp, cur->esp, fault_addr, user);
   if (fault_addr < PHYS_BASE)
   {
 

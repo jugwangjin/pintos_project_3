@@ -26,5 +26,6 @@ bool frame_less (const struct hash_elem *a_, const struct hash_elem *b_,
                  void *aux);
 void *frame_get_page (enum palloc_flags flags, struct spage_table_entry *ste);
 bool frame_table_insert (void *frame, void *uaddr);
-
+void frame_set_pin_true (void *frame);
+void frame_set_pin_false (void *frame);
 #endif

@@ -42,10 +42,12 @@ void
   frame = NULL;
   if (! (flags & PAL_USER))
     return NULL;
+lock_acquire (&frame_lock);
   frame = palloc_get_page (flags);
   if (frame != NULL)
   {
     frame_table_insert (frame, spage->uaddr);
+lock_release (&frame_lock);
     return frame;
   }
   else
@@ -91,7 +93,12 @@ void
 	    spage_write_back (ste, fte->thread);
           else
           {
-            if(pagedir_is_dirty (pd, fte->uaddr))
+            if(pagedir_is_dirty (pd, fte->uaddr) && ste->file)
+            {
+              ste->swap_index = swap_save_page (fte->kaddr);
+              ste->swap = true;
+            }
+            else if(!ste->file)
             {
               ste->swap_index = swap_save_page (fte->kaddr);
               ste->swap = true;
@@ -105,8 +112,10 @@ void
 	}
       }
     }
+lock_release (&frame_lock);
     return frame;
   }
+lock_release (&frame_lock);
   return NULL;
 }
 
@@ -136,3 +145,27 @@ frame_free_page (void *frame)
   }
 }
 
+void
+frame_set_pin (void *frame, bool pin)
+{
+  struct frame_table_entry fte;
+  struct hash_elem *e;
+  struct frame_table_entry *fte_en;
+  fte.kaddr = frame;
+  e = hash_delete (&frame_table, &fte.hash_elem);
+  if (e != NULL)
+  {  
+    fte_en = hash_entry (e, struct frame_table_entry, hash_elem);
+    fte_en->pin = pin;
+  }
+}
+
+void frame_set_pin_true (void *frame)
+{
+  frame_set_pin (frame, true);
+}
+
+void frame_set_pin_false (void *frame)
+{
+  frame_set_pin (frame, false);
+}

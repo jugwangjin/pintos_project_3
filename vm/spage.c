@@ -103,19 +103,21 @@ spage_free_page (void *uaddr, struct hash *spage_table)
   if (e != NULL)
   {
     ste = (hash_entry (e, struct spage_table_entry, hash_elem));
-    if (get_user (ste->uaddr)==-1)
-      return false;
-    if (ste->mmap)
+    if(ste)
     {
-      spage_write_back (ste, t);
-      mapid_elem = addr_to_mapid_element (ste->uaddr);
-      if (mapid_elem != NULL)
-        munmap_close (mapid_elem->fd);
-    }
+      get_user (ste->uaddr);
+      if (ste->mmap)
+      {
+        spage_write_back (ste, t);
+        mapid_elem = addr_to_mapid_element (ste->uaddr);
+        if (mapid_elem != NULL)
+          munmap_close (mapid_elem->fd);
+      }
     frame_free_page (pagedir_get_page (t->pagedir, ste->uaddr));
     pagedir_clear_page (t->pagedir, ste->uaddr);
     free (ste);
     return true;
+    }
   }
   return false;
 }
@@ -149,7 +151,9 @@ spage_get_frame (struct spage_table_entry *ste)
   bool success;
   allocated_frame = frame_get_page (PAL_USER, ste);
   if (!allocated_frame)
+  {
     return false;
+  }
   success = false; 
   success = install_page (ste->uaddr, allocated_frame, ste->writable);
   if (!success)
@@ -159,6 +163,7 @@ spage_get_frame (struct spage_table_entry *ste)
   {
     swap_load_page (ste->swap_index, allocated_frame);
     ste->swap = false;
+    success = true;
     //swap_free_page (ste->swap_index);
   }
   else
@@ -170,10 +175,11 @@ spage_get_frame (struct spage_table_entry *ste)
   } 
 
 //  success = install_page (ste->uaddr, allocated_frame, ste->writable);  
-  if (success == false)
+/*  if (success == false)
   {
     frame_free_page (allocated_frame);
   }
+*/
   return success;
 }
     
