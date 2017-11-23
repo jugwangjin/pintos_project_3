@@ -216,7 +216,7 @@ spage_mmap (struct file* file, void *addr)
   file_seek (file, ofs);
   while (read_bytes > 0)
   {
-    size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+    size_t page_read_bytes = read_bytes < PGSIZE ? 0 : PGSIZE;
     size_t page_zero_bytes = PGSIZE - page_read_bytes;
   
     ste = malloc (sizeof (struct spage_table_entry));
