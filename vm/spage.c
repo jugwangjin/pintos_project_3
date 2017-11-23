@@ -107,7 +107,8 @@ spage_free_page (void *uaddr, struct hash *spage_table)
     ste = (hash_entry (e, struct spage_table_entry, hash_elem));
     if(ste)
     {
-      get_user (ste->uaddr);
+      if (ste->swap)
+        get_user (ste->uaddr);
       if (ste->mmap)
       {
         spage_write_back (ste, t);
@@ -249,11 +250,13 @@ spage_write_back (struct spage_table_entry *ste, struct thread *t)
   bool dirty;
   if (ste == NULL)
     return;
+
   dirty = pagedir_is_dirty(t->pagedir, ste->uaddr);
   if (dirty)
   {
     uaddr_set_pin_true (ste->uaddr, &t->spage_table);
-    file_write_at (ste->file_ptr, pagedir_get_page(t->pagedir, ste->uaddr), ste->read_bytes, ste->ofs);
+//    file_write_at (ste->file_ptr, pagedir_get_page(t->pagedir, ste->uaddr), ste->read_bytes, ste->ofs);
+    file_write_at (ste->file_ptr, ste->uaddr, ste->read_bytes, ste->ofs);
     uaddr_set_pin_false (ste->uaddr, &t->spage_table);
   }
 }
