@@ -6,6 +6,7 @@
 #include "threads/palloc.h"
 #include "userprog/syscall.h"
 #include "vm/swap.h"
+#include "vm/frame.h"
 
 static int
 get_user (const uint8_t *uaddr)
@@ -133,8 +134,6 @@ load_file (struct spage_table_entry *ste, void *frame)
   {
     if (file_read_at (ste->file_ptr, frame, ste->read_bytes, ste->ofs) != (int) ste->read_bytes)
     {
-      frame_free_page (frame);
-      pagedir_clear_page (thread_current ()->pagedir, ste->uaddr);
       return false;
     }
     memset (frame + ste->read_bytes, 0, ste->zero_bytes);
@@ -149,6 +148,9 @@ spage_get_frame (struct spage_table_entry *ste)
 {
   void *allocated_frame;
   bool success;
+  struct frame_table_entry fte;
+  struct hash_elem *e;
+  struct frame_table_entry *fte_en;
   allocated_frame = frame_get_page (PAL_USER, ste);
   if (!allocated_frame)
   {
@@ -156,6 +158,12 @@ spage_get_frame (struct spage_table_entry *ste)
   }
   success = false; 
   success = install_page (ste->uaddr, allocated_frame, ste->writable);
+  fte.kaddr = allocated_frame;
+  e = hash_find (&frame_table, &fte.hash_elem);
+  fte_en = hash_entry (e, struct frame_table_entry, hash_elem);
+  fte_en->uaddr = ste->uaddr;
+  fte_en->thread = thread_current ();
+
   if (!success)
     return success;
 //printf("before load_file\n");

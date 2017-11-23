@@ -93,16 +93,17 @@ lock_release (&frame_lock);
 	    spage_write_back (ste, fte->thread);
           else
           {
+/*
             if(pagedir_is_dirty (pd, fte->uaddr) && ste->file)
             {
               ste->swap_index = swap_save_page (fte->kaddr);
               ste->swap = true;
             }
             else if(!ste->file)
-            {
+            {*/
               ste->swap_index = swap_save_page (fte->kaddr);
               ste->swap = true;
-            }
+//            }
           }
 	  pagedir_set_accessed (pd, fte->uaddr, false);
           pagedir_set_dirty (pd, fte->uaddr, false);
@@ -152,7 +153,7 @@ frame_set_pin (void *frame, bool pin)
   struct hash_elem *e;
   struct frame_table_entry *fte_en;
   fte.kaddr = frame;
-  e = hash_delete (&frame_table, &fte.hash_elem);
+  e = hash_find (&frame_table, &fte.hash_elem);
   if (e != NULL)
   {  
     fte_en = hash_entry (e, struct frame_table_entry, hash_elem);

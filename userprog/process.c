@@ -90,6 +90,8 @@ start_process (void *file_name_)
   success = load (file_name, &if_.eip, &if_.esp);
   cur-> parent_thread -> exec_child_success = success;
   sema_up (&(cur->parent_thread -> exec_sema));
+
+
   /* If load success, pass arguments. */
   if (success)
   {
