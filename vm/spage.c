@@ -86,7 +86,7 @@ make_spage_for_stack_growth (struct hash *spage_table, void *fault_addr)
   ste->mmap = false;
   ste->file = false;
   ste->swap = false;
-  
+ 
   hash_insert (spage_table, &ste->hash_elem);
   return spage_get_frame (ste);
 }
@@ -132,10 +132,13 @@ load_file (struct spage_table_entry *ste, void *frame)
     return false;*/
   if(ste->file)
   {
+    frame_set_pin_true (frame);
     if (file_read_at (ste->file_ptr, frame, ste->read_bytes, ste->ofs) != (int) ste->read_bytes)
     {
+      frame_set_pin_false (frame);
       return false;
     }
+    frame_set_pin_false (frame);
     memset (frame + ste->read_bytes, 0, ste->zero_bytes);
   }
 /*  else if (ste->mmap && ste->zero_bytes!=0)
@@ -224,6 +227,7 @@ spage_mmap (struct file* file, void *addr)
     ste->read_bytes = page_read_bytes;
     ste->zero_bytes = page_zero_bytes;
 
+
     if (hash_insert (&t->spage_table, &ste->hash_elem) != NULL)
       return false;
 
@@ -243,8 +247,11 @@ spage_write_back (struct spage_table_entry *ste, struct thread *t)
     return;
   dirty = pagedir_is_dirty(t->pagedir, ste->uaddr);
   if (dirty)
+  {
+    frame_set_pin_true (pagedir_get_page(t->pagedir, ste->uaddr));
     file_write_at (ste->file_ptr, pagedir_get_page(t->pagedir, ste->uaddr), ste->read_bytes, ste->ofs);
-
+    frame_set_pin_false (pagedir_get_page(t->pagedir, ste->uaddr));
+  }
 }
 /* same as hash_destroy, but I could not find argument. so make it */
 void

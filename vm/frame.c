@@ -3,6 +3,7 @@
 #include "vm/swap.h"
 #include "vm/spage.h"
 #include "userprog/pagedir.h"
+#include "devices/intq.h"
 
 void
 frame_init (void)
@@ -38,6 +39,7 @@ void
   struct hash_iterator it;
   struct hash_elem *e;
   struct spage_table_entry *ste;
+  enum intr_level old_level;
  
   frame = NULL;
   if (! (flags & PAL_USER))
@@ -67,7 +69,6 @@ lock_release (&frame_lock);
       if (e == NULL)
         hash_first (&it, &frame_table);
     }
-
     while (true)
     {
       e = hash_next (&it);
@@ -82,12 +83,10 @@ lock_release (&frame_lock);
         PANIC("aa");
       }
       pd = fte->thread->pagedir;
-      if (!fte->pin)
+
+      if (!fte->pin && pagedir_is_accessed (pd, fte->uaddr))
       {
-	if (pagedir_is_accessed (pd, fte->uaddr))
-	  pagedir_set_accessed (pd, fte->uaddr, false);
-	else
-	{
+	pagedir_set_accessed (pd, fte->uaddr, false);
           ste = get_spage (&fte->thread->spage_table, fte->uaddr);
 	  if (ste->mmap)
 	    spage_write_back (ste, fte->thread);
@@ -105,14 +104,18 @@ lock_release (&frame_lock);
               ste->swap = true;
 //            }
           }
-	  pagedir_set_accessed (pd, fte->uaddr, false);
-          pagedir_set_dirty (pd, fte->uaddr, false);
-	  pagedir_clear_page (pd, fte->uaddr);
-	  frame = fte->kaddr;
+
 	  break;
-	}
       }
     }
+
+  old_level = intr_disable (); 
+  pagedir_set_accessed (pd, fte->uaddr, false);
+  pagedir_set_dirty (pd, fte->uaddr, false);
+  pagedir_clear_page (pd, fte->uaddr);
+  intr_set_level (old_level);
+  frame = fte->kaddr;
+
 lock_release (&frame_lock);
     return frame;
   }

@@ -7,6 +7,7 @@
 #include "vm/spage.h"
 #include "threads/vaddr.h"
 #include <hash.h>
+
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -163,7 +164,6 @@ page_fault (struct intr_frame *f)
 
   if (fault_addr < PHYS_BASE)
   {
-
     ste = get_spage (&cur->spage_table, fault_addr);
     if (ste)
     {

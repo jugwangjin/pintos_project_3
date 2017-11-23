@@ -604,12 +604,13 @@ setup_stack (void **esp)
 
   struct spage_table_entry *ste;
   struct thread *t = thread_current ();
-
   bool success = false; 
   /* first page of stack should be in spage list */
   ste = malloc (sizeof (struct spage_table_entry));
   if (!ste)
+  {
     return false;
+  }
   ste->uaddr = ((uint8_t *)PHYS_BASE) - PGSIZE;
   ste->writable = true;
   ste->mmap = false;
@@ -618,7 +619,7 @@ setup_stack (void **esp)
 
   /* if setup stack fails, panic */
   ASSERT (hash_insert (&t->spage_table, &(ste->hash_elem)) == NULL)
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  kpage = frame_get_page (PAL_USER | PAL_ZERO, ste);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
