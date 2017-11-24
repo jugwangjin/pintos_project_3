@@ -102,6 +102,7 @@ spage_free_page (void *uaddr, struct hash *spage_table)
   struct mapid_element *mapid_elem;
   search_ste.uaddr = uaddr;
   e = hash_delete (spage_table, &search_ste.hash_elem);
+lock_acquire (&frame_lock);
   if (e != NULL)
   {
     ste = (hash_entry (e, struct spage_table_entry, hash_elem));
@@ -119,9 +120,11 @@ spage_free_page (void *uaddr, struct hash *spage_table)
     frame_free_page (pagedir_get_page (t->pagedir, ste->uaddr));
     pagedir_clear_page (t->pagedir, ste->uaddr);
     free (ste);
+lock_release (&frame_lock);
     return true;
     }
   }
+lock_release (&frame_lock);
   return false;
 }
 
@@ -134,14 +137,15 @@ load_file (struct spage_table_entry *ste, void *frame)
     return false;*/
   if(ste->file)
   {
-    uaddr_set_pin_true (ste->uaddr, &thread_current ()->spage_table);
+//    uaddr_set_pin_true (ste->uaddr, &thread_current ()->spage_table);
     if (file_read_at (ste->file_ptr, frame, ste->read_bytes, ste->ofs) != (int) ste->read_bytes)
+//    if (file_read_at (ste->file_ptr, ste->uaddr, ste->read_bytes, ste->ofs) != (int) ste->read_bytes)
     {
       uaddr_set_pin_false (ste->uaddr, &thread_current ()->spage_table);
       return false;
     }
-    uaddr_set_pin_false (ste->uaddr, &thread_current ()->spage_table);
     memset (frame + ste->read_bytes, 0, ste->zero_bytes);
+//    uaddr_set_pin_false (ste->uaddr, &thread_current ()->spage_table);
   }
 /*  else if (ste->mmap && ste->zero_bytes!=0)
     memset (frame, 0, PGSIZE);*/
@@ -157,7 +161,7 @@ spage_get_frame (struct spage_table_entry *ste)
   struct hash_elem *e;
   struct frame_table_entry *fte_en;
   lock_acquire (&frame_lock);
-  allocated_frame = frame_get_page (PAL_USER, ste);
+  allocated_frame = frame_get_page (PAL_USER|PAL_ZERO, ste);
   if (!allocated_frame)
   {
     lock_release (&frame_lock);
@@ -186,7 +190,9 @@ uaddr_set_pin_false (ste->uaddr, &thread_current ()->spage_table);
   {
     if (ste->file)
     {
+    uaddr_set_pin_true (ste->uaddr, &thread_current ()->spage_table);
       success = load_file (ste, allocated_frame);
+    uaddr_set_pin_false (ste->uaddr, &thread_current ()->spage_table);
     }
   } 
 
@@ -216,7 +222,7 @@ spage_mmap (struct file* file, void *addr)
   file_seek (file, ofs);
   while (read_bytes > 0)
   {
-    size_t page_read_bytes = read_bytes < PGSIZE ? 0 : PGSIZE;
+    size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
     size_t page_zero_bytes = PGSIZE - page_read_bytes;
   
     ste = malloc (sizeof (struct spage_table_entry));
@@ -238,7 +244,7 @@ spage_mmap (struct file* file, void *addr)
 
     ofs += page_read_bytes;
     read_bytes -= page_read_bytes;
-    addr += PGSIZE;
+    addr += page_read_bytes;
 //    pg_number += 1;
   }
   return true;

@@ -620,9 +620,9 @@ setup_stack (void **esp)
   ste->pin = false;
   /* if setup stack fails, panic */
   ASSERT (hash_insert (&t->spage_table, &(ste->hash_elem)) == NULL)
-  lock_acquire (&frame_lock);
-  kpage = frame_get_page (PAL_USER | PAL_ZERO, ste);
-  struct frame_table_entry fte;
+//  lock_acquire (&frame_lock);
+  success = spage_get_frame (ste);
+/*  struct frame_table_entry fte;
   struct hash_elem *e;
   struct frame_table_entry *fte_en;
   fte.kaddr = kpage;
@@ -636,7 +636,9 @@ setup_stack (void **esp)
       if (success)
         *esp = PHYS_BASE;
     }
-  lock_release (&frame_lock);
+  lock_release (&frame_lock);*/
+  if (success)
+    *esp = PHYS_BASE;
   return success;
 }
 

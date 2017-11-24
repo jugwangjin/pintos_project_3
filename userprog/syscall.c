@@ -12,6 +12,8 @@
 #include "filesys/inode.h"
 #include "threads/vaddr.h"
 #include "threads/palloc.h"
+#include "vm/frame.h"
+
 
 static void syscall_handler (struct intr_frame *);
 int file_to_new_fd (struct file *file);
@@ -252,7 +254,9 @@ cur->esp = f->esp;
         thread_exit ();
       }
       uaddr_set_pin_true (*(void **)argument_2, &cur->spage_table);
+lock_acquire (&frame_lock);
       f->eax = file_read (file, *(void **)argument_2, *(off_t *)argument_3);
+lock_release (&frame_lock);
       uaddr_set_pin_false (*(void **)argument_2, &cur->spage_table);
       sema_up (&sys_sema);
       return;
@@ -298,7 +302,9 @@ cur->esp = f->esp;
           return;
         }
         uaddr_set_pin_true (*(void **)argument_2, &cur->spage_table);
+lock_acquire (&frame_lock);
         f->eax = file_write (file, *(void **)argument_2, *(off_t *)argument_3); 
+lock_release (&frame_lock);
         uaddr_set_pin_false (*(void **)argument_2, &cur->spage_table);
       }
       sema_up (&sys_sema);
@@ -506,12 +512,12 @@ munmap_close (int mapid)
         struct fd_element* fd_elem = fd_to_fd_element (mapid_elem->fd);
         list_remove (&mapid_elem->elem);
         palloc_free_page (&mapid_elem->elem); 
-        if(fd_elem != NULL)
+/*        if(fd_elem != NULL)
         {
           file_close (fd_elem->file);
           list_remove (&fd_elem->elem);
           palloc_free_page (fd_elem);
-        } 
+        } */
       }
 }
 

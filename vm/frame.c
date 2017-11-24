@@ -90,8 +90,7 @@ void
       ste = get_spage (&fte->thread->spage_table, fte->uaddr);
       if (!ste->pin && pagedir_is_accessed (pd, fte->uaddr))
       {
-        
-	pagedir_set_accessed (pd, fte->uaddr, false);
+          pagedir_set_accessed (pd, fte->uaddr, false);
 	  if (ste->mmap)
 	    spage_write_back (ste, fte->thread);
           else
@@ -104,18 +103,22 @@ void
             }
             else if(!ste->file)
             {*/
+            if (pagedir_is_dirty (pd, fte->uaddr))
+            {
+              uaddr_set_pin_true (fte->uaddr, &fte->thread->spage_table); 
               ste->swap_index = swap_save_page (fte->kaddr);
               ste->swap = true;
+              uaddr_set_pin_false (fte->uaddr, &fte->thread->spage_table);
+            }
 //            }
           }
-
+          
 	  break;
       }
     }
 
   old_level = intr_disable (); 
   clock_hand = fte->kaddr;
-  pagedir_set_accessed (pd, fte->uaddr, false);
   pagedir_set_dirty (pd, fte->uaddr, false);
   pagedir_clear_page (pd, fte->uaddr);
   intr_set_level (old_level);
