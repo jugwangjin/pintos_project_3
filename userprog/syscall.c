@@ -75,7 +75,8 @@ syscall_handler (struct intr_frame *f)
   struct fd_element *fd_elem;
   struct file *file;
   struct thread *cur = thread_current ();
-
+  int num_of_pages;
+  int i;
   /* Number of arguments that are used depends on syscall number.
      Max number of arguments is 3. */
   if(!is_user_vaddr ((f->esp))
@@ -253,11 +254,16 @@ cur->esp = f->esp;
         sema_up (&sys_sema);
         thread_exit ();
       }
-      uaddr_set_pin_true (*(void **)argument_2, &cur->spage_table);
+      num_of_pages = *(off_t *)argument_3 / PGSIZE;
+      for (i = 0; i < num_of_pages; i++)
+        uaddr_set_pin_true (*(void **)argument_2+i*PGSIZE, &cur->spage_table);
+//      uaddr_set_pin_true (*(void **)argument_2, &cur->spage_table);
 lock_acquire (&frame_lock);
       f->eax = file_read (file, *(void **)argument_2, *(off_t *)argument_3);
 lock_release (&frame_lock);
-      uaddr_set_pin_false (*(void **)argument_2, &cur->spage_table);
+      for (i = 0; i < num_of_pages; i++)
+       uaddr_set_pin_false (*(void **)argument_2+i*PGSIZE, &cur->spage_table);
+//     uaddr_set_pin_false (*(void **)argument_2, &cur->spage_table);
       sema_up (&sys_sema);
       return;
     case SYS_WRITE:
@@ -301,11 +307,15 @@ lock_release (&frame_lock);
           sema_up (&sys_sema);
           return;
         }
-        uaddr_set_pin_true (*(void **)argument_2, &cur->spage_table);
+       for (i = 0; i < num_of_pages; i++)
+        uaddr_set_pin_true (*(void **)argument_2+i*PGSIZE, &cur->spage_table);
+//      uaddr_set_pin_true (*(void **)argument_2, &cur->spage_table);
 lock_acquire (&frame_lock);
         f->eax = file_write (file, *(void **)argument_2, *(off_t *)argument_3); 
 lock_release (&frame_lock);
-        uaddr_set_pin_false (*(void **)argument_2, &cur->spage_table);
+      for (i = 0; i < num_of_pages; i++)
+	uaddr_set_pin_false (*(void **)argument_2+i*PGSIZE, &cur->spage_table);
+//        uaddr_set_pin_false (*(void **)argument_2, &cur->spage_table);
       }
       sema_up (&sys_sema);
       return;

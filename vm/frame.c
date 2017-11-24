@@ -4,7 +4,6 @@
 #include "vm/spage.h"
 #include "userprog/pagedir.h"
 #include "devices/intq.h"
-
 static void *clock_hand;
 
 void
@@ -72,7 +71,7 @@ void
       if (e == NULL)
         hash_first (&it, &frame_table);
     }
-//lock_acquire (&pinning_lock);
+lock_acquire (&pinning_lock);
     while (true)
     {
       e = hash_next (&it);
@@ -90,6 +89,7 @@ void
       ste = get_spage (&fte->thread->spage_table, fte->uaddr);
       if (!ste->pin && pagedir_is_accessed (pd, fte->uaddr))
       {
+lock_release (&pinning_lock);
           pagedir_set_accessed (pd, fte->uaddr, false);
 	  if (ste->mmap)
 	    spage_write_back (ste, fte->thread);
@@ -121,10 +121,9 @@ void
   clock_hand = fte->kaddr;
   pagedir_set_dirty (pd, fte->uaddr, false);
   pagedir_clear_page (pd, fte->uaddr);
-  intr_set_level (old_level);
 //  lock_release (&pinning_lock);
   frame = fte->kaddr;
-
+  intr_set_level (old_level);
 //lock_release (&frame_lock);
     return frame;
   }

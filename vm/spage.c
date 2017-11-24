@@ -137,7 +137,7 @@ load_file (struct spage_table_entry *ste, void *frame)
     return false;*/
   if(ste->file)
   {
-//    uaddr_set_pin_true (ste->uaddr, &thread_current ()->spage_table);
+    uaddr_set_pin_true (ste->uaddr, &thread_current ()->spage_table);
     if (file_read_at (ste->file_ptr, frame, ste->read_bytes, ste->ofs) != (int) ste->read_bytes)
 //    if (file_read_at (ste->file_ptr, ste->uaddr, ste->read_bytes, ste->ofs) != (int) ste->read_bytes)
     {
@@ -145,7 +145,7 @@ load_file (struct spage_table_entry *ste, void *frame)
       return false;
     }
     memset (frame + ste->read_bytes, 0, ste->zero_bytes);
-//    uaddr_set_pin_false (ste->uaddr, &thread_current ()->spage_table);
+    uaddr_set_pin_false (ste->uaddr, &thread_current ()->spage_table);
   }
 /*  else if (ste->mmap && ste->zero_bytes!=0)
     memset (frame, 0, PGSIZE);*/
@@ -262,7 +262,7 @@ spage_write_back (struct spage_table_entry *ste, struct thread *t)
   {
     uaddr_set_pin_true (ste->uaddr, &t->spage_table);
 //    file_write_at (ste->file_ptr, pagedir_get_page(t->pagedir, ste->uaddr), ste->read_bytes, ste->ofs);
-    file_write_at (ste->file_ptr, ste->uaddr, ste->read_bytes, ste->ofs);
+    file_write_at (ste->file_ptr, ste->uaddr, ste->read_bytes, ste->ofs)==ste->read_bytes;
     uaddr_set_pin_false (ste->uaddr, &t->spage_table);
   }
 }
@@ -303,6 +303,8 @@ lock_acquire (&pinning_lock);
     ste_en = hash_entry (e, struct spage_table_entry, hash_elem);
     ste_en->pin = pin;
   }
+//  else
+//    PANIC ("NO STE!");
 lock_release (&pinning_lock);
 }
 

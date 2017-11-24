@@ -202,6 +202,8 @@ process_exit (void)
   /* destroy spage table */
   spage_destroy (&cur->spage_table);
 
+  ASSERT (hash_empty (&cur->spage_table));
+
   e = list_begin (&cur->fd_table);
   while(!is_tail(e))
   {
